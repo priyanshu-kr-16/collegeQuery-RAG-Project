@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SRM College Query — Admin Ingestion Portal</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- ==================== ADMIN PASSWORD GATE ==================== -->
+  <div id="adminGateScreen" class="fixed inset-0 bg-slate-950 z-50 flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl space-y-6">
+      <div class="text-center space-y-2">
+        <div class="w-14 h-14 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center mx-auto text-2xl shadow-lg">
+          🔒
+        </div>
+        <h2 class="text-xl font-bold text-white tracking-tight">SRM Admin Portal</h2>
+        <p class="text-xs text-slate-400">Restricted to University Admissions, Faculty & Academic Admins.</p>
+      </div>
+
+      <form id="formAdminGate" class="space-y-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="inputGatePassword">Admin Password</label>
+          <input 
+            id="inputGatePassword" 
+            type="password" 
+            required 
+            placeholder="Enter admin password" 
+            class="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 transition" 
+          />
+          <p id="gateErrorText" class="hidden text-xs text-rose-400 mt-2 font-medium">Incorrect password. Please try again.</p>
+        </div>
+
+        <button 
+          type="submit" 
+          class="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition"
+        >
+          Unlock Admin Console
+        </button>
+
+        <div class="text-center pt-2">
+          <a href="/" class="text-xs text-slate-400 hover:text-indigo-300 transition">← Return to Student Chat</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== TOP ADMIN HEADER ==================== -->
+  <header class="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0 font-bold text-white text-sm">
+          ⚙️
+        </div>
+        <div class="truncate">
+          <h1 class="font-bold text-base sm:text-lg tracking-tight text-white truncate">SRM Admin Console</h1>
+          <p class="text-xs text-indigo-400 font-medium truncate">Knowledge Ingestion & Vector DB</p>
+        </div>
+      </div>
+
+      <!-- Admin Navigation Tabs -->
+      <nav id="adminNavTabs" class="flex items-center gap-1 sm:gap-1.5 bg-slate-950/90 p-1 rounded-xl border border-indigo-500/30 overflow-x-auto max-w-full">
+        <button id="tabBtnCrawler" type="button" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow-sm whitespace-nowrap flex items-center gap-1.5" data-target="viewCrawler">
+          <span>🕷️</span><span>Web URL Crawler</span>
+          <span id="badgeWebCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">0</span>
+        </button>
+        <button id="tabBtnPdf" type="button" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white whitespace-nowrap flex items-center gap-1.5" data-target="viewPdf">
+          <span>📄</span><span>PDF Extractor</span>
+          <span id="badgePdfCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-slate-800 text-slate-300">0</span>
+        </button>
+        <button id="tabBtnNotes" type="button" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white whitespace-nowrap flex items-center gap-1.5" data-target="viewNotes">
+          <span>✍️</span><span>Custom Notes</span>
+          <span id="badgeNotesCount" class="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500/20 text-emerald-300">0</span>
+        </button>
+        <button id="tabBtnArch" type="button" class="nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white whitespace-nowrap flex items-center gap-1.5" data-target="viewArch">
+          <span>🗄️</span><span>Vector DB Manager</span>
+        </button>
+      </nav>
+
+      <!-- Right Action: Return to Student Chat -->
+      <div class="flex items-center gap-2 shrink-0">
+        <a href="/" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5">
+          <span>💬</span><span>Open Student Chat</span>
+        </a>
+        <button id="btnLogoutAdmin" type="button" class="px-2.5 py-2 rounded-xl text-xs font-semibold bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 transition" title="Lock Admin Console">
+          <span>🔒</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 border border-indigo-500/50 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+    <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0"></span>
+    <p id="toastMessage" class="text-xs sm:text-sm font-medium"></p>
+  </div>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col space-y-6">
+
+    <!-- ==================== VIEW 1: WEB URL CRAWLER ==================== -->
+    <section id="viewCrawler" class="space-y-6">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <span>🕷️</span><span>Live College URL Crawler</span>
+            </h2>
+            <p class="text-xs sm:text-sm text-slate-400 mt-0.5">
+              Enter any college URL. Jina Reader strips web boilerplate, isolates fee/curriculum tables with headers intact, and stores 768-dim embeddings in Supabase.
+            </p>
+          </div>
+          <button id="btnCrawlAllPreset" type="button" class="px-4 py-2 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold whitespace-nowrap transition">
+            ⚡ 1-Click Crawl Core SRM Pages
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4 mt-4 items-end">
+          <div class="md:col-span-6">
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="crawlUrlInput">Target College URL</label>
+            <input
+              id="crawlUrlInput"
+              type="text"
+              value="https://www.srmup.in/admissions/admission-procedure"
+              placeholder="https://www.srmup.in/..."
+              class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+            />
+          </div>
+          <div class="md:col-span-3">
+            <label class="block text-xs font-semibold text-slate-300 mb-1.5" for="crawlModeSelect">Crawl Mode</label>
+            <select id="crawlModeSelect" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white focus:outline-none focus:border-indigo-500">
+              <option value="recursive" selected>⚡ Recursive (All Tabs & Sub-Pages)</option>
+              <option value="single">Single Page Only</option>
+            </select>
+          </div>
+          <div class="md:col-span-3">
+            <button
+              id="btnRunCrawler"
+              type="button"
+              class="w-full py-2.5 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/20 transition flex items-center justify-center gap-2"
+            >
+              <span>🕷️</span><span>Start Crawl</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="mt-3 flex flex-wrap items-center gap-1.5">
+          <span class="text-[11px] text-slate-400 mr-1">Quick Select:</span>
+          <button type="button" class="quick-url-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800" data-url="https://www.srmup.in/admissions/fee-structure">Fee Structure</button>
+          <button type="button" class="quick-url-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800" data-url="https://www.srmup.in/policy/hostel-policy">Hostel Policy</button>
+          <button type="button" class="quick-url-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800" data-url="https://www.srmup.in/anti-ragging">Anti-Ragging</button>
+          <button type="button" class="quick-url-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800" data-url="https://www.srmup.in/placements/overview">Placements</button>
+          <button type="button" class="quick-url-btn text-[11px] px-2.5 py-1 rounded-lg bg-slate-950 hover:bg-slate-800 text-slate-300 border border-slate-800" data-url="https://www.srmup.in/academics/central-library">Library Rules</button>
+        </div>
+
+        <div id="crawlSimulationLog" class="hidden mt-4 bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs space-y-1.5 max-h-56 overflow-y-auto custom-scroll"></div>
+      </div>
+
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-sm font-bold text-white">Indexed Web Sections</h3>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-slate-400 hidden sm:inline">Stored in Supabase pgvector</span>
+            <button id="btnClearWebChunks" type="button" class="text-xs px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1" title="Delete only web crawler chunks">
+              <span>🗑️</span><span>Delete All Web Chunks</span>
+            </button>
+          </div>
+        </div>
+        <div id="webSourcesListContainer" class="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[420px] overflow-y-auto pr-1 custom-scroll"></div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 2: PDF EXTRACTOR ==================== -->
+    <section id="viewPdf" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 space-y-5">
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+            <div class="flex items-center justify-between mb-2">
+              <h2 class="text-base font-bold text-white">📄 Upload College PDFs</h2>
+              <span class="text-[11px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">PDF.js Engine</span>
+            </div>
+            <p class="text-xs text-slate-400 mb-4">
+              Upload any official college PDF (syllabus book, academic circular, timetable). Extracted text is split and vectorized into Supabase.
+            </p>
+            <label for="realPdfFileInput" class="cursor-pointer border-2 border-dashed border-slate-700 hover:border-cyan-400 rounded-2xl p-6 flex flex-col items-center justify-center text-center transition bg-slate-950/60">
+              <svg class="w-9 h-9 text-cyan-400 mb-2" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+              </svg>
+              <span class="text-xs sm:text-sm font-semibold text-slate-200">Select `.pdf`, `.txt`, or `.md` files</span>
+              <span class="text-[11px] text-slate-400 mt-1">Parses pages, chunks text & syncs to vector DB</span>
+              <input id="realPdfFileInput" type="file" accept=".pdf,.txt,.md" multiple class="hidden" />
+            </label>
+            <div id="pdfUploadStatusBox" class="hidden mt-3 p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-cyan-300 font-mono"></div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white">Indexed PDF Circulars & Handbooks</h3>
+            <button id="btnClearPdfChunks" type="button" class="text-xs px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1" title="Delete only PDF chunks">
+              <span>🗑️</span><span>Delete All PDFs</span>
+            </button>
+          </div>
+          <div id="pdfSourcesListContainer" class="space-y-3 overflow-y-auto max-h-[520px] pr-1 custom-scroll"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 3: CUSTOM NOTES ==================== -->
+    <section id="viewNotes" class="hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+          <div class="flex items-center justify-between mb-2">
+            <h2 class="text-base font-bold text-white">✍️ Create Vectorized College Note</h2>
+            <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Instant Ingest</span>
+          </div>
+          <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+            Quickly add college notices, event schedules, or lab rules directly to the vector store.
+          </p>
+          <form id="formAddCustomNote" class="space-y-3.5">
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1" for="customNoteTitle">Topic / Title</label>
+              <input id="customNoteTitle" type="text" required placeholder="e.g., 2026 End-Semester Exam Guidelines" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-emerald-500" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1" for="customNoteCategory">Category</label>
+                <select id="customNoteCategory" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white">
+                  <option value="Academics & Timetable">Academics & Timetable</option>
+                  <option value="Fees & Scholarships">Fees & Scholarships</option>
+                  <option value="Hostel & Campus Rules">Hostel & Campus Rules</option>
+                  <option value="Placements & Careers">Placements & Careers</option>
+                  <option value="Events & Calendar">Events & Calendar</option>
+                  <option value="Senior & Admin Notes">Campus Notes</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-300 mb-1" for="customNoteYear">Year</label>
+                <select id="customNoteYear" class="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-white">
+                  <option value="2026">2026</option>
+                  <option value="2025">2025</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-300 mb-1" for="customNoteContent">Note Content / Policy Text</label>
+              <textarea id="customNoteContent" rows="6" required placeholder="Write details, dates, or regulations..." class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3.5 text-xs text-white leading-relaxed focus:outline-none focus:border-emerald-500"></textarea>
+            </div>
+            <button type="submit" class="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs sm:text-sm shadow-lg shadow-emerald-600/20 transition">
+              💾 Embed & Sync to Vector DB
+            </button>
+          </form>
+        </div>
+
+        <div class="lg:col-span-7 bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl flex flex-col">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-white">Indexed Custom Notes</h3>
+            <button id="btnClearNoteChunks" type="button" class="text-xs px-2.5 py-1 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1" title="Delete only custom notes">
+              <span>🗑️</span><span>Delete All Notes</span>
+            </button>
+          </div>
+          <div id="customNotesListContainer" class="space-y-3 overflow-y-auto max-h-[500px] pr-1 custom-scroll"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== VIEW 4: VECTOR DB MANAGER ==================== -->
+    <section id="viewArch" class="hidden space-y-6">
+      <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white">🗄️ Vector Database Storage Explorer</h2>
+            <p class="text-xs text-slate-400 mt-0.5">
+              Inspect, manage, or delete semantic vector chunks stored in your Supabase pgvector table.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <div class="text-xs bg-slate-950 border border-slate-800 px-3 py-1.5 rounded-xl">
+              Total Chunks in DB: <strong id="statTotalChunks" class="text-emerald-400">0</strong>
+            </div>
+            <button id="btnRefreshDb" type="button" class="text-xs px-3 py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 transition">
+              🔄 Refresh
+            </button>
+            <button id="btnExportJson" type="button" class="text-xs px-3 py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 transition">
+              📥 Export JSON
+            </button>
+            <button id="btnClearAllDb" type="button" class="text-xs px-3 py-1.5 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 transition flex items-center gap-1.5" title="Danger: Wipes all chunks from vector database">
+              <span>⚠️</span><span>Purge All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 1-Click Purge URL Tool -->
+        <div class="mt-4 p-3 bg-slate-950/80 border border-slate-800/80 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div class="flex items-center gap-2 flex-1 min-w-[280px]">
+            <span class="text-rose-400 font-semibold shrink-0">🗑️ Delete by URL / Source:</span>
+            <input id="inputPurgeUrl" type="text" placeholder="Paste URL to delete all its chunks (e.g. https://www.srmup.in/admissions/...)" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-rose-500" />
+          </div>
+          <button id="btnPurgeUrl" type="button" class="px-3 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/40 rounded-lg text-xs font-semibold transition flex items-center gap-1.5">
+            <span>🗑️</span><span>Purge Chunks</span>
+          </button>
+        </div>
+
+        <div id="allKnowledgeTableContainer" class="mt-4 space-y-2.5 max-h-[500px] overflow-y-auto pr-1 custom-scroll"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const ADMIN_PASSWORD_SECRET = 'pk1607';
+    let knowledgeBase = [];
+
+    // Session-based Admin Gate Check
+    const gateScreen = document.getElementById('adminGateScreen');
+    const gateForm = document.getElementById('formAdminGate');
+    const gatePasswordInput = document.getElementById('inputGatePassword');
+    const gateError = document.getElementById('gateErrorText');
+
+    if (sessionStorage.getItem('srm_admin_session') === 'active') {
+      gateScreen.classList.add('hidden');
+    }
+
+    gateForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      if (gatePasswordInput.value.trim() === ADMIN_PASSWORD_SECRET) {
+        sessionStorage.setItem('srm_admin_session', 'active');
+        gateScreen.classList.add('hidden');
+        showToast('🔓 Admin Console unlocked!');
+        loadChunksFromCloud();
+      } else {
+        gateError.classList.remove('hidden');
+      }
+    });
+
+    document.getElementById('btnLogoutAdmin').addEventListener('click', () => {
+      sessionStorage.removeItem('srm_admin_session');
+      gatePasswordInput.value = '';
+      gateError.classList.add('hidden');
+      gateScreen.classList.remove('hidden');
+    });
+
+    // Tab Navigation
+    const tabs = ['viewCrawler', 'viewPdf', 'viewNotes', 'viewArch'];
+    document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const target = btn.getAttribute('data-target');
+        tabs.forEach(t => {
+          const el = document.getElementById(t);
+          if (el) el.classList.toggle('hidden', t !== target);
+        });
+        document.querySelectorAll('.nav-tab-btn').forEach(b => {
+          b.className = b === btn
+            ? 'nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow-sm whitespace-nowrap flex items-center gap-1.5'
+            : 'nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white whitespace-nowrap flex items-center gap-1.5';
+        });
+      });
+    });
+
+    function showToast(msg) {
+      const t = document.getElementById('toastBanner');
+      document.getElementById('toastMessage').textContent = msg;
+      t.classList.remove('hidden');
+      setTimeout(() => t.classList.add('hidden'), 3500);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    // Quick URL buttons
+    document.querySelectorAll('.quick-url-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.getElementById('crawlUrlInput').value = btn.getAttribute('data-url');
+      });
+    });
+
+    // Ingestion Call to /api/ingest
+    async function ingestUrlThroughBackend(urlToCrawl) {
+      const logBox = document.getElementById('crawlSimulationLog');
+      logBox.classList.remove('hidden');
+      const addLog = (msg, cls = 'text-slate-300') => {
+        const p = document.createElement('p');
+        p.className = cls;
+        p.textContent = msg;
+        logBox.appendChild(p);
+        logBox.scrollTop = logBox.scrollHeight;
+      };
+
+      addLog(`🕷️ Connecting crawler to: ${urlToCrawl}...`, 'text-indigo-400');
+
+      try {
+        const resp = await fetch('/api/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            url: urlToCrawl,
+            adminPassword: ADMIN_PASSWORD_SECRET
+          })
+        });
+
+        const data = await resp.json();
+        if (resp.ok && data.status === 'ok') {
+          addLog(`✅ Successfully parsed & vectorized ${data.chunksIndexed} chunks into Supabase!`, 'text-emerald-400 font-semibold');
+          showToast(`Indexed ${data.chunksIndexed} chunks from ${urlToCrawl}!`);
+          await loadChunksFromCloud();
+        } else {
+          addLog(`❌ Ingestion error: ${data.error || 'Server error'}`, 'text-rose-400');
+          showToast('Failed to crawl URL: ' + (data.error || ''));
+        }
+      } catch (err) {
+        addLog(`❌ Network error: ${err.message}`, 'text-rose-400');
+        showToast('Error communicating with backend.');
+      }
+    }
+
+    document.getElementById('btnRunCrawler').addEventListener('click', async () => {
+      const url = document.getElementById('crawlUrlInput').value.trim();
+      const mode = document.getElementById('crawlModeSelect').value;
+      if (!url) return;
+
+      const runBtn = document.getElementById('btnRunCrawler');
+      runBtn.disabled = true;
+      runBtn.innerHTML = '<span>⏳</span><span>Crawling...</span>';
+
+      const logBox = document.getElementById('crawlSimulationLog');
+      logBox.classList.remove('hidden');
+      const addLog = (msg, cls = 'text-slate-300') => {
+        const p = document.createElement('p');
+        p.className = cls;
+        p.textContent = msg;
+        logBox.appendChild(p);
+        logBox.scrollTop = logBox.scrollHeight;
+      };
+
+      try {
+        // 1. Crawl the main parent page
+        addLog(`🌐 [Parent Page] Ingesting: ${url}...`, 'text-indigo-400 font-semibold');
+        await ingestUrlThroughBackend(url);
+
+        // 2. If recursive mode, auto-discover and crawl all internal tabs/sub-pages
+        if (mode === 'recursive') {
+          addLog(`🔍 Scanning for sub-tabs and internal links on ${url}...`, 'text-cyan-400');
+          const discResp = await fetch('/api/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url,
+              discoverLinksOnly: true,
+              adminPassword: ADMIN_PASSWORD_SECRET
+            })
+          });
+
+          const discData = await discResp.json();
+          const discoveredLinks = (discData && discData.links) ? discData.links : [];
+
+          if (discoveredLinks.length > 0) {
+            addLog(`🔗 Discovered ${discoveredLinks.length} sub-tabs & internal pages! Starting automatic recursive crawl:`, 'text-emerald-400 font-bold');
+            
+            for (let i = 0; i < discoveredLinks.length; i++) {
+              const subUrl = discoveredLinks[i];
+              addLog(`[${i + 1}/${discoveredLinks.length}] Ingesting: ${subUrl}...`, 'text-indigo-300');
+              try {
+                await ingestUrlThroughBackend(subUrl);
+              } catch (subErr) {
+                addLog(`⚠️ Skipped ${subUrl}: ${subErr.message}`, 'text-amber-400');
+              }
+            }
+
+            addLog(`🎉 Recursive crawl complete! Successfully indexed parent page + ${discoveredLinks.length} sub-pages into Supabase.`, 'text-emerald-400 font-bold');
+            showToast(`Recursive crawl complete! Indexed ${discoveredLinks.length + 1} pages.`);
+          } else {
+            addLog(`ℹ️ No sub-tabs or internal links discovered on this page.`, 'text-slate-400');
+          }
+        }
+      } catch (err) {
+        addLog(`❌ Crawl Error: ${err.message}`, 'text-rose-400');
+      } finally {
+        runBtn.disabled = false;
+        runBtn.innerHTML = '<span>🕷️</span><span>Start Crawl</span>';
+      }
+    });
+
+    document.getElementById('btnCrawlAllPreset').addEventListener('click', async () => {
+      const urls = Array.from(document.querySelectorAll('.quick-url-btn')).map(b => b.getAttribute('data-url'));
+      for (const u of urls) {
+        await ingestUrlThroughBackend(u);
+      }
+    });
+
+    // Custom Note Ingestion
+    document.getElementById('formAddCustomNote').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = document.getElementById('customNoteTitle').value.trim();
+      const cat = document.getElementById('customNoteCategory').value;
+      const year = document.getElementById('customNoteYear').value;
+      const content = document.getElementById('customNoteContent').value.trim();
+
+      const newChunk = [{
+        id: `note-${Date.now()}`,
+        source_type: 'note',
+        title: `Campus Circular: ${title}`,
+        url: 'https://www.srmup.in/notices',
+        category: cat,
+        academic_year: year,
+        content
+      }];
+
+      try {
+        const resp = await fetch('/api/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customChunks: newChunk,
+            adminPassword: ADMIN_PASSWORD_SECRET
+          })
+        });
+
+        if (resp.ok) {
+          showToast('Saved & Vectorized custom note into DB!');
+          document.getElementById('formAddCustomNote').reset();
+          await loadChunksFromCloud();
+        } else {
+          const err = await resp.json().catch(() => ({}));
+          showToast('Failed to save note: ' + (err.error || ''));
+        }
+      } catch (err) {
+        showToast('Network error saving note.');
+      }
+    });
+
+    // PDF Extraction via Mozilla PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    document.getElementById('realPdfFileInput').addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      const statusBox = document.getElementById('pdfUploadStatusBox');
+      statusBox.classList.remove('hidden');
+
+      for (const file of files) {
+        statusBox.textContent = `Processing ${file.name}...`;
+        try {
+          const buffer = await file.arrayBuffer();
+          let extractedText = '';
+
+          if (file.name.endsWith('.pdf')) {
+            const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const textContent = await page.getTextContent();
+              const pageText = textContent.items.map(it => it.str).join(' ');
+              if (pageText.trim()) {
+                extractedText += `\n[Page ${i}]\n${pageText}\n`;
+              }
+            }
+          } else {
+            extractedText = new TextDecoder('utf-8').decode(buffer);
+          }
+
+          if (extractedText.trim().length > 30) {
+            const chunk = [{
+              id: `pdf-${Date.now()}`,
+              source_type: 'pdf',
+              title: `PDF: ${file.name}`,
+              url: `local://${file.name}`,
+              category: 'Academics & Timetable',
+              academic_year: '2026',
+              content: extractedText.slice(0, 3000)
+            }];
+
+            await fetch('/api/ingest', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                customChunks: chunk,
+                adminPassword: ADMIN_PASSWORD_SECRET
+              })
+            });
+
+            statusBox.textContent = `✅ Successfully uploaded & vectorized ${file.name}!`;
+            showToast(`Vectorized ${file.name}!`);
+            await loadChunksFromCloud();
+          }
+        } catch (err) {
+          statusBox.textContent = `❌ Error processing ${file.name}: ${err.message}`;
+        }
+      }
+    });
+
+    function renderKnowledgeViews() {
+      const webDocs = knowledgeBase.filter(k => k.source_type === 'website');
+      const pdfDocs = knowledgeBase.filter(k => k.source_type === 'pdf');
+      const noteDocs = knowledgeBase.filter(k => k.source_type === 'note');
+
+      document.getElementById('badgeWebCount').textContent = String(webDocs.length);
+      document.getElementById('badgePdfCount').textContent = String(pdfDocs.length);
+      document.getElementById('badgeNotesCount').textContent = String(noteDocs.length);
+      document.getElementById('statTotalChunks').textContent = String(knowledgeBase.length);
+
+      // Render Web List
+      const webCont = document.getElementById('webSourcesListContainer');
+      webCont.innerHTML = webDocs.length ? webDocs.map(c => `
+        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <div class="font-bold text-xs text-white truncate flex-1">${escapeHtml(c.title)}</div>
+            <button data-delete-id="${escapeHtml(c.id)}" data-chunk-title="${escapeHtml(c.title)}" class="text-rose-400 hover:text-rose-300 p-1 rounded hover:bg-rose-950/40 text-xs transition shrink-0" title="Delete this chunk">🗑️</button>
+          </div>
+          <div class="text-[11px] text-slate-400 truncate flex items-center justify-between gap-2">
+            <span class="truncate">${escapeHtml(c.url)}</span>
+            <button data-delete-url="${escapeHtml(c.url)}" class="text-[10px] text-rose-400/80 hover:text-rose-300 underline shrink-0 cursor-pointer" title="Delete all chunks from this URL">Purge URL</button>
+          </div>
+          <div class="text-xs text-slate-300 line-clamp-2">${escapeHtml(c.content)}</div>
+        </div>
+      `).join('') : '<p class="text-xs text-slate-500 col-span-2">No web chunks indexed yet.</p>';
+
+      // Render PDF List
+      const pdfCont = document.getElementById('pdfSourcesListContainer');
+      pdfCont.innerHTML = pdfDocs.length ? pdfDocs.map(c => `
+        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <div class="font-bold text-xs text-cyan-300 truncate flex-1">${escapeHtml(c.title)}</div>
+            <button data-delete-id="${escapeHtml(c.id)}" data-chunk-title="${escapeHtml(c.title)}" class="text-rose-400 hover:text-rose-300 p-1 rounded hover:bg-rose-950/40 text-xs transition shrink-0" title="Delete this chunk">🗑️</button>
+          </div>
+          <div class="text-xs text-slate-300 line-clamp-2">${escapeHtml(c.content)}</div>
+        </div>
+      `).join('') : '<p class="text-xs text-slate-500">No PDF chunks indexed yet.</p>';
+
+      // Render Notes List
+      const noteCont = document.getElementById('customNotesListContainer');
+      noteCont.innerHTML = noteDocs.length ? noteDocs.map(c => `
+        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl space-y-1">
+          <div class="flex items-start justify-between gap-2">
+            <div class="font-bold text-xs text-emerald-300 truncate flex-1">${escapeHtml(c.title)}</div>
+            <button data-delete-id="${escapeHtml(c.id)}" data-chunk-title="${escapeHtml(c.title)}" class="text-rose-400 hover:text-rose-300 p-1 rounded hover:bg-rose-950/40 text-xs transition shrink-0" title="Delete this note">🗑️</button>
+          </div>
+          <div class="text-xs text-slate-300 line-clamp-2">${escapeHtml(c.content)}</div>
+        </div>
+      `).join('') : '<p class="text-xs text-slate-500">No custom notes added yet.</p>';
+
+      // Render DB Explorer
+      const dbCont = document.getElementById('allKnowledgeTableContainer');
+      dbCont.innerHTML = knowledgeBase.length ? knowledgeBase.map(c => `
+        <div class="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between gap-3 text-xs">
+          <div class="min-w-0 flex-1 truncate">
+            <span class="px-2 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 mr-2 uppercase">${escapeHtml(c.source_type)}</span>
+            <strong class="text-white">${escapeHtml(c.title)}</strong>
+          </div>
+          <span class="text-slate-400 text-[11px] shrink-0 hidden sm:inline">${escapeHtml(c.category)}</span>
+          <button data-delete-id="${escapeHtml(c.id)}" data-chunk-title="${escapeHtml(c.title)}" class="text-rose-400 hover:text-rose-300 px-2 py-1 rounded hover:bg-rose-950/50 text-xs border border-rose-900/40 transition shrink-0 flex items-center gap-1" title="Delete chunk from Supabase">
+            <span>🗑️</span><span class="text-[11px] hidden sm:inline">Delete</span>
+          </button>
+        </div>
+      `).join('') : '<p class="text-xs text-slate-500">Database is empty.</p>';
+    }
+
+    // Helper: Execute DELETE to /api/ingest
+    async function executeDelete(payload) {
+      showToast('Deleting from Supabase...');
+      try {
+        const resp = await fetch('/api/ingest', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            adminPassword: ADMIN_PASSWORD_SECRET
+          })
+        });
+        const resData = await resp.json().catch(() => ({}));
+        if (resp.ok && resData.status === 'ok') {
+          showToast(`Deleted ${resData.deletedCount || 1} chunk(s) from Supabase!`);
+          await loadChunksFromCloud();
+        } else {
+          showToast('Delete failed: ' + (resData.error || 'Server error'));
+        }
+      } catch (err) {
+        showToast('Network error during deletion.');
+      }
+    }
+
+    // Global Delegated Click Listener for Delete buttons
+    document.addEventListener('click', async (e) => {
+      const delBtn = e.target.closest('[data-delete-id]');
+      if (delBtn) {
+        const chunkId = delBtn.getAttribute('data-delete-id');
+        const chunkTitle = delBtn.getAttribute('data-chunk-title') || 'this chunk';
+        if (confirm(`Are you sure you want to delete "${chunkTitle}" from Supabase?`)) {
+          await executeDelete({ id: chunkId });
+        }
+        return;
+      }
+
+      const delUrlBtn = e.target.closest('[data-delete-url]');
+      if (delUrlBtn) {
+        const targetUrl = delUrlBtn.getAttribute('data-delete-url');
+        if (confirm(`Delete ALL chunks belonging to:\n${targetUrl}?`)) {
+          await executeDelete({ url: targetUrl });
+        }
+        return;
+      }
+    });
+
+    // Category-specific Purge Actions
+    document.getElementById('btnClearWebChunks').addEventListener('click', async () => {
+      if (confirm('Delete ALL crawled website chunks from Supabase? (PDFs and Notes will be kept safe)')) {
+        await executeDelete({ sourceType: 'website' });
+      }
+    });
+
+    document.getElementById('btnClearPdfChunks').addEventListener('click', async () => {
+      if (confirm('Delete ALL uploaded PDF document chunks from Supabase? (Web pages and Notes will be kept safe)')) {
+        await executeDelete({ sourceType: 'pdf' });
+      }
+    });
+
+    document.getElementById('btnClearNoteChunks').addEventListener('click', async () => {
+      if (confirm('Delete ALL custom notes and circulars from Supabase? (Web pages and PDFs will be kept safe)')) {
+        await executeDelete({ sourceType: 'note' });
+      }
+    });
+
+    // Quick Purge URL input button
+    document.getElementById('btnPurgeUrl').addEventListener('click', async () => {
+      const input = document.getElementById('inputPurgeUrl');
+      const urlToPurge = input.value.trim();
+      if (!urlToPurge) {
+        alert('Please enter a URL to purge.');
+        return;
+      }
+      if (confirm(`Delete ALL chunks matching URL:\n${urlToPurge}?`)) {
+        await executeDelete({ url: urlToPurge });
+        input.value = '';
+      }
+    });
+
+    // ⚠️ Purge Entire Database with safety confirmation
+    document.getElementById('btnClearAllDb').addEventListener('click', async () => {
+      const answer = prompt('⚠️ DANGER: This will permanently wipe ALL indexed knowledge chunks (websites, PDFs, notes) from your Supabase vector database!\n\nTo confirm, type "DELETE ALL" below:');
+      if (answer !== 'DELETE ALL') {
+        if (answer !== null) alert('Action cancelled. You must type "DELETE ALL" exactly.');
+        return;
+      }
+
+      await executeDelete({ clearAll: true });
+    });
+
+    // Load chunks from Supabase on start and render
+    async function loadChunksFromCloud() {
+      try {
+        const resp = await fetch('/api/ingest');
+        if (resp.ok) {
+          const data = await resp.json();
+          if (Array.isArray(data.chunks)) {
+            knowledgeBase = data.chunks;
+            renderKnowledgeViews();
+          }
+        }
+      } catch (err) {
+        console.warn('Could not load chunks from cloud DB:', err);
+      }
+    }
+
+    document.getElementById('btnRefreshDb').addEventListener('click', async () => {
+      showToast('Refreshing from Supabase Cloud...');
+      await loadChunksFromCloud();
+    });
+
+    document.getElementById('btnExportJson').addEventListener('click', () => {
+      const dataStr = JSON.stringify(knowledgeBase, null, 2);
+      const blob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'knowledge_vectors.json';
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+
+    // Initial load
+    loadChunksFromCloud();
+  </script>
+</body>
+</html>

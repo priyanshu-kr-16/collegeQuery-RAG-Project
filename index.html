@@ -1,0 +1,1548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SRM College Query — Pure RAG AI Assistant</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 9999px; }
+    .rag-table { width: 100%; border-collapse: collapse; margin: 0.65rem 0; font-size: 0.78rem; }
+    .rag-table th { background: rgba(30, 41, 59, 0.95); color: #e2e8f0; font-weight: 600; text-align: left; padding: 0.5rem 0.65rem; border: 1px solid #334155; }
+    .rag-table td { padding: 0.45rem 0.65rem; border: 1px solid #1e293b; color: #cbd5e1; }
+    .rag-table tr:nth-child(even) td { background: rgba(15, 23, 42, 0.55); }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col selection:bg-indigo-500 selection:text-white">
+
+  <!-- ==================== TOP HEADER BAR ==================== -->
+  <header class="border-b border-slate-800/80 bg-slate-900/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
+      <!-- Brand Identity -->
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0 font-bold text-white text-sm tracking-tighter">
+          SRM
+        </div>
+        <div class="truncate">
+          <h1 class="font-bold text-base sm:text-lg tracking-tight text-white truncate">SRM College Query</h1>
+          <p class="text-xs text-slate-400 truncate">AI Student Query Assistant</p>
+        </div>
+      </div>
+
+      <!-- Live Status Badge -->
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>Campus AI Online</span>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Toast Notification -->
+  <div id="toastBanner" class="fixed bottom-5 right-5 z-50 hidden max-w-sm bg-slate-900 border border-indigo-500/50 text-slate-100 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+    <span class="w-2.5 h-2.5 rounded-full bg-indigo-400 shrink-0"></span>
+    <p id="toastMessage" class="text-xs sm:text-sm font-medium"></p>
+  </div>
+
+  <!-- ==================== MAIN WORKSPACE ==================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-4 flex flex-col">
+
+    <!-- ==================== VIEW 1: CLEAN STUDENT CHAT INTERFACE ==================== -->
+    <section id="viewChat" class="flex-1 flex flex-col max-w-4xl w-full mx-auto">
+      <div class="flex-1 flex flex-col bg-slate-900/75 border border-slate-800/90 rounded-2xl overflow-hidden shadow-2xl h-[calc(100vh-7.5rem)] min-h-[540px]">
+
+        <!-- Minimal Chat Top Bar -->
+        <div class="px-4 py-2.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-2">
+            <span id="ragReadyIndicator" class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span id="ragStatusLabel" class="text-xs font-medium text-slate-300">Ask anything about SRM College</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="categoryFilterSelect" class="bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-200 focus:outline-none focus:border-indigo-500">
+              <option value="ALL">All Topics</option>
+              <option value="Fees & Scholarships">Fees & Scholarships</option>
+              <option value="Hostel & Campus Rules">Hostel, Mess & Bus</option>
+              <option value="Academics & Timetable">Academics, Exams & Library</option>
+              <option value="Placements & Careers">Placements</option>
+              <option value="Events & Calendar">Events & Calendar</option>
+              <option value="Senior & Admin Notes">Campus Notes</option>
+            </select>
+            <button id="btnClearChat" type="button" class="text-xs px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition">New Chat</button>
+          </div>
+        </div>
+
+        <!-- Streamlined 6 Quick Ask Chips -->
+        <div class="px-4 py-2 bg-slate-950/60 border-b border-slate-800/80 flex items-center gap-2 overflow-x-auto custom-scroll">
+          <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400 shrink-0">Quick Ask:</span>
+          <button type="button" class="sample-query-chip shrink-0 text-xs px-3 py-1 rounded-full bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/30 transition" data-query="What is the complete fee structure for all courses?">
+            💰 Complete Fee Structure
+          </button>
+          <button type="button" class="sample-query-chip shrink-0 text-xs px-3 py-1 rounded-full bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/30 transition" data-query="What are the specializations and courses offered in B.Tech?">
+            🔬 B.Tech Specializations
+          </button>
+          <button type="button" class="sample-query-chip shrink-0 text-xs px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" data-query="What is the hostel policy, mess rules, and hostel fees?">
+            🏠 Hostel Policy & Fees
+          </button>
+          <button type="button" class="sample-query-chip shrink-0 text-xs px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" data-query="How are placements, highest package, and top recruiters?">
+            🚀 Placements
+          </button>
+          <button type="button" class="sample-query-chip shrink-0 text-xs px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" data-query="What is the anti-ragging policy and emergency helpline?">
+            🛡️ Anti-Ragging Policy
+          </button>
+          <button type="button" class="sample-query-chip shrink-0 text-xs px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition" data-query="What are the library timings, book borrowing limits, and overdue fines?">
+            📚 Library Rules
+          </button>
+        </div>
+
+        <!-- Chat Messages Stream -->
+        <div id="chatMessagesContainer" class="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 custom-scroll"></div>
+
+        <!-- Clicked Source Details Drawer -->
+        <div id="chatCitationDrawer" class="hidden px-4 py-3 bg-slate-950 border-t border-indigo-500/40 text-xs text-slate-200">
+          <div class="flex items-center justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-2 min-w-0">
+              <span id="drawerSourceBadge" class="px-2 py-0.5 rounded bg-indigo-500/20 text-indigo-300 font-semibold text-[11px] shrink-0">Source</span>
+              <span id="drawerSourceTitle" class="font-bold text-white truncate"></span>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <a id="drawerSourceLinkBtn" href="https://www.srmup.in/" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-[11px] transition flex items-center gap-1">
+                <span>Go to Source</span>
+                <span>↗</span>
+              </a>
+              <button id="btnCloseCitationDrawer" type="button" class="text-slate-400 hover:text-white px-1.5 text-sm">✕</button>
+            </div>
+          </div>
+          <div id="drawerSourceBody" class="max-h-28 overflow-y-auto text-slate-300 whitespace-pre-line custom-scroll pr-2 text-xs leading-relaxed"></div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <form id="chatInputForm" class="p-3 sm:p-4 bg-slate-900 border-t border-slate-800 flex items-center gap-2.5">
+          <div class="relative flex-1">
+            <input
+              id="chatQueryInput"
+              type="text"
+              placeholder="Ask any college question (e.g., 'What is the hostel fee?', 'B.Tech CSE tuition') or chat casually..."
+              class="w-full bg-slate-950 border border-slate-700/90 focus:border-indigo-500 rounded-xl pl-4 pr-10 py-3.5 text-sm text-white placeholder-slate-400 focus:outline-none transition"
+              autocomplete="off"
+            />
+          </div>
+          <button
+            id="btnSubmitQuery"
+            type="submit"
+            class="px-5 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm shadow-lg shadow-indigo-600/25 transition flex items-center gap-2 shrink-0"
+          >
+            <span>Send</span>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+            </svg>
+          </button>
+        </form>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    const ADMIN_PASSWORD_SECRET = 'pk1607';
+    let isAdminAuthenticated = false;
+
+    // ==================== 1. PURE RAG STATE, LINK GRAPH & MODEL CACHING ====================
+    const STORAGE_KEY_KB = 'srm_pure_rag_vectors_v11';
+    const STORAGE_KEY_LINKS = 'srm_discovered_links_v11';
+    const STORAGE_KEY_CHAT = 'srm_chat_history_v11';
+    const STORAGE_KEY_GEMINI = 'campus_rag_gemini_key';
+    const STORAGE_KEY_SB_URL = 'campus_rag_supabase_url';
+    const STORAGE_KEY_SB_KEY = 'campus_rag_supabase_key';
+    const STORAGE_KEY_CHAT_MODEL = 'campus_rag_working_chat_model';
+    const STORAGE_KEY_EMB_MODEL = 'campus_rag_working_emb_model';
+
+    let workingChatModel = '';
+    let workingEmbedModel = '';
+    try {
+      workingChatModel = localStorage.getItem(STORAGE_KEY_CHAT_MODEL) || '';
+      workingEmbedModel = localStorage.getItem(STORAGE_KEY_EMB_MODEL) || '';
+    } catch (e) {}
+
+    const DEFAULT_CHAT_MODELS = [
+      'gemini-3-flash-preview',
+      'gemini-3.8-flash',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash'
+    ];
+    const DEFAULT_EMBED_MODELS = [
+      'gemini-embedding-001',
+      'gemini-embedding-2'
+    ];
+
+    function getChatModelsToTry() {
+      if (workingChatModel) {
+        return [workingChatModel, ...DEFAULT_CHAT_MODELS.filter(m => m !== workingChatModel)];
+      }
+      return [...DEFAULT_CHAT_MODELS];
+    }
+
+    function getEmbedModelsToTry() {
+      if (workingEmbedModel) {
+        return [workingEmbedModel, ...DEFAULT_EMBED_MODELS.filter(m => m !== workingEmbedModel)];
+      }
+      return [...DEFAULT_EMBED_MODELS];
+    }
+
+    let knowledgeBase = [];
+    // Dynamic graph of { url, anchorText } discovered while crawling any site (zero hardcoding!)
+    let discoveredSiteLinks = [];
+    let chatHistory = [];
+    let geminiApiKey = '';
+    let supabaseUrl = '';
+    let supabaseKey = '';
+
+    try {
+      const savedKb = localStorage.getItem(STORAGE_KEY_KB) || localStorage.getItem('srm_pure_rag_vectors_v10') || localStorage.getItem('srm_pure_rag_vectors_v9');
+      if (savedKb) knowledgeBase = JSON.parse(savedKb);
+    } catch (e) { knowledgeBase = []; }
+
+    try {
+      const savedLinks = localStorage.getItem(STORAGE_KEY_LINKS);
+      if (savedLinks) discoveredSiteLinks = JSON.parse(savedLinks);
+    } catch (e) { discoveredSiteLinks = []; }
+
+    try {
+      const savedChat = localStorage.getItem(STORAGE_KEY_CHAT);
+      if (savedChat) {
+        const parsedChat = JSON.parse(savedChat);
+        chatHistory = Array.isArray(parsedChat) ? parsedChat : [];
+      }
+    } catch (e) { chatHistory = []; }
+
+    try {
+      geminiApiKey = localStorage.getItem(STORAGE_KEY_GEMINI) || '';
+      supabaseUrl = localStorage.getItem(STORAGE_KEY_SB_URL) || '';
+      supabaseKey = localStorage.getItem(STORAGE_KEY_SB_KEY) || '';
+    } catch (e) {}
+
+    function persistKnowledgeBase() {
+      try {
+        localStorage.setItem(STORAGE_KEY_KB, JSON.stringify(knowledgeBase));
+      } catch (e) {
+        console.warn('LocalStorage quota reached; keeping vectors in memory/Supabase.', e);
+      }
+    }
+
+    function persistDiscoveredLinks() {
+      try {
+        localStorage.setItem(STORAGE_KEY_LINKS, JSON.stringify(discoveredSiteLinks.slice(0, 300)));
+      } catch (e) {}
+    }
+
+    function persistChatHistory() {
+      try {
+        localStorage.setItem(STORAGE_KEY_CHAT, JSON.stringify(chatHistory.slice(-40)));
+      } catch (e) {}
+    }
+
+    function showToast(msg) {
+      const banner = document.getElementById('toastBanner');
+      const text = document.getElementById('toastMessage');
+      text.textContent = msg;
+      banner.classList.remove('hidden');
+      clearTimeout(window._toastTimer);
+      window._toastTimer = setTimeout(() => {
+        banner.classList.add('hidden');
+      }, 3600);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    }
+
+    function normalizeUrlKey(u) {
+      return String(u || '')
+        .trim()
+        .replace(/^https?:\/\/(www\.)?/i, 'https://')
+        .split('#')[0]
+        .replace(/\/+$/, '')
+        .toLowerCase();
+    }
+
+    function updateApiStatusBadge() {
+      const dot = document.getElementById('apiKeyStatusDot');
+      const text = document.getElementById('apiKeyStatusText');
+      const ragDot = document.getElementById('ragReadyIndicator');
+      const ragLabel = document.getElementById('ragStatusLabel');
+
+      const hasKey = geminiApiKey && geminiApiKey.trim().length > 10;
+      const hasSb = supabaseUrl && supabaseKey;
+      const vecCount = knowledgeBase.filter(k => Array.isArray(k.embedding) && k.embedding.length > 0).length;
+
+      if (hasKey) {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+        text.textContent = hasSb ? 'Gemini + Supabase Ready' : 'Gemini API Ready';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+        text.textContent = 'Connect Gemini API';
+      }
+
+      if (ragLabel && ragDot) {
+        ragDot.className = knowledgeBase.length > 0
+          ? 'w-2 h-2 rounded-full bg-emerald-400'
+          : 'w-2 h-2 rounded-full bg-amber-400';
+        ragLabel.textContent = isAdminAuthenticated
+          ? `Pure RAG Engine • ${knowledgeBase.length} Chunks (${vecCount} Vectorized)`
+          : 'Ask anything about SRM College';
+      }
+    }
+
+    // ==================== 2. UNIVERSAL DATE & METADATA EXTRACTORS ====================
+    const MONTH_MAP = {
+      jan: '01', january: '01', feb: '02', february: '02', mar: '03', march: '03',
+      apr: '04', april: '04', may: '05', jun: '06', june: '06', jul: '07', july: '07',
+      aug: '08', august: '08', sep: '09', sept: '09', september: '09', oct: '10', october: '10',
+      nov: '11', november: '11', dec: '12', december: '12'
+    };
+
+    function extractDatesFromText(text) {
+      const found = new Set();
+      const p1 = /\b(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+(\d{1,2})\b/gi;
+      let m;
+      while ((m = p1.exec(text)) !== null) {
+        const mon = MONTH_MAP[m[1].toLowerCase().slice(0, 3)];
+        const day = parseInt(m[2], 10);
+        if (mon && day >= 1 && day <= 31) found.add(`${mon}-${String(day).padStart(2, '0')}`);
+      }
+      const p2 = /\b(\d{1,2})(?:st|nd|rd|th)?\s+(Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\b/gi;
+      while ((m = p2.exec(text)) !== null) {
+        const day = parseInt(m[1], 10);
+        const mon = MONTH_MAP[m[2].toLowerCase().slice(0, 3)];
+        if (mon && day >= 1 && day <= 31) found.add(`${mon}-${String(day).padStart(2, '0')}`);
+      }
+      return Array.from(found);
+    }
+
+    function inferCategoryFromSection(url, heading, content) {
+      const combined = `${url} ${heading} ${content}`.toLowerCase();
+      if (/\b(hostel|mess|warden|boarding|curfew|outpass|ragging|bus|transport)\b/.test(combined)) {
+        return 'Hostel & Campus Rules';
+      }
+      if (/\b(fee|fees|tuition|scholarship|refund|payment|loan)\b/.test(combined)) {
+        return 'Fees & Scholarships';
+      }
+      if (/\b(placement|recruiter|package|ctc|internship|career)\b/.test(combined)) {
+        return 'Placements & Careers';
+      }
+      if (/\b(happenings|fest|convocation|event|calendar)\b/.test(combined)) {
+        return 'Events & Calendar';
+      }
+      return 'Academics & Timetable';
+    }
+
+    // ==================== 3. UNIVERSAL STRUCTURAL MARKDOWN & TABLE CHUNKER (ZERO HARDCODED TITLES) ====================
+    // 1. Filters out pure navigation-menu link lists (lines that are ONLY `* [Menu Text](url)`), so site navbars
+    //    don't masquerade as content chunks and trick the LLM into saying "Here is the link, go click it!"
+    // 2. Splits at every Markdown heading (#..#####) and every standalone Markdown table (`| Col |\n| --- |`),
+    //    grabbing the 1-2 short caption lines above each table and repeating table headers across long tables.
+    function isTableDelimiterLine(line) {
+      const t = String(line || '').trim();
+      return t.startsWith('|') && t.endsWith('|') && /^\|[\s:|-]+\|$/.test(t) && t.includes('-');
+    }
+
+    function isShortCaptionLine(line) {
+      const t = String(line || '').trim().replace(/^[*_#\s]+|[*_#\s]+$/g, '');
+      if (!t || t.length < 3 || t.length > 85) return false;
+      if (t.startsWith('|') || t.startsWith('http') || t.startsWith('[')) return false;
+      if (/[.!?]$/.test(t)) return false;
+      return true;
+    }
+
+    // Detects if a line is purely a navigation menu bullet link like `* [Fee Structure](https://...)` with no prose
+    function isPureNavMenuLinkLine(line) {
+      const t = String(line || '').trim();
+      return /^(?:[*+\-]|\d+\.)?\s*\[[^\]]{1,60}\]\(https?:\/\/[^\s)]+\)\s*$/i.test(t);
+    }
+
+    function chunkMarkdownBySections(rawMarkdown, sourceUrl, fallbackPageTitle) {
+      const lines = String(rawMarkdown || '').split('\n');
+      let pageTitle = fallbackPageTitle || sourceUrl.replace(/^https?:\/\/(www\.)?/, '');
+
+      for (let i = 0; i < Math.min(lines.length, 8); i++) {
+        const tMatch = lines[i].match(/^Title:\s*(.+)$/i);
+        if (tMatch && tMatch[1].trim()) {
+          pageTitle = tMatch[1].trim();
+          break;
+        }
+      }
+
+      const rawSections = [];
+      let currentHeading = 'Overview';
+      let currentBuffer = [];
+      let inTable = false;
+
+      function flushSection() {
+        // Strip runs of pure navigation menu lines (3+ consecutive link-only bullets) from the chunk body
+        const filteredLines = [];
+        let runOfLinks = [];
+        for (const ln of currentBuffer) {
+          if (isPureNavMenuLinkLine(ln)) {
+            runOfLinks.push(ln);
+          } else {
+            if (runOfLinks.length > 0 && runOfLinks.length < 3) {
+              filteredLines.push(...runOfLinks);
+            }
+            runOfLinks = [];
+            filteredLines.push(ln);
+          }
+        }
+        if (runOfLinks.length > 0 && runOfLinks.length < 3) {
+          filteredLines.push(...runOfLinks);
+        }
+
+        const bodyText = filteredLines.join('\n').trim();
+        // Skip chunks that have almost no real text after stripping navigation link menus
+        const textWithoutLinks = bodyText.replace(/\[([^\]]+)\]\(https?:\/\/[^\s)]+\)/g, '$1').trim();
+        if (bodyText.length < 30 || textWithoutLinks.length < 25) {
+          currentBuffer = [];
+          inTable = false;
+          return;
+        }
+
+        if (bodyText.length <= 1650) {
+          rawSections.push({ heading: currentHeading, body: bodyText });
+        } else {
+          const secLines = bodyText.split('\n');
+          let tableHeaderBlock = '';
+          for (let k = 0; k < secLines.length - 1; k++) {
+            if (secLines[k].trim().startsWith('|') && isTableDelimiterLine(secLines[k + 1])) {
+              tableHeaderBlock = secLines[k].trim() + '\n' + secLines[k + 1].trim();
+              break;
+            }
+          }
+
+          let subBuf = [];
+          let subLen = 0;
+          let part = 1;
+          for (let k = 0; k < secLines.length; k++) {
+            const ln = secLines[k];
+            if (subLen + ln.length > 1450 && subBuf.length > 4) {
+              rawSections.push({
+                heading: `${currentHeading} (Part ${part})`,
+                body: subBuf.join('\n').trim()
+              });
+              part++;
+              subBuf = [];
+              subLen = 0;
+              if (tableHeaderBlock && ln.trim().startsWith('|')) {
+                subBuf.push(tableHeaderBlock);
+                subLen = tableHeaderBlock.length;
+              }
+            }
+            subBuf.push(ln);
+            subLen += ln.length + 1;
+          }
+          if (subBuf.join('\n').trim().length > 25) {
+            rawSections.push({
+              heading: part > 1 ? `${currentHeading} (Part ${part})` : currentHeading,
+              body: subBuf.join('\n').trim()
+            });
+          }
+        }
+        currentBuffer = [];
+        inTable = false;
+      }
+
+      for (let i = 0; i < lines.length; i++) {
+        const rawLine = lines[i];
+        const trimmed = rawLine.trim();
+        if (/^(URL Source:|Markdown Content:|Published Time:)/i.test(trimmed)) continue;
+
+        const hMatch = trimmed.match(/^(#{1,5})\s+(.+)$/);
+        if (hMatch) {
+          const newH = hMatch[2].replace(/[#*`]/g, '').trim();
+          if (currentBuffer.join('').trim().length < 20 && currentHeading !== 'Overview') {
+            currentHeading = `${currentHeading} — ${newH}`;
+          } else {
+            flushSection();
+            currentHeading = newH;
+          }
+          continue;
+        }
+
+        const nextTrimmed = (lines[i + 1] || '').trim();
+        const startsNewTable = trimmed.startsWith('|') && trimmed.endsWith('|') && isTableDelimiterLine(nextTrimmed);
+
+        if (startsNewTable && !inTable) {
+          const captionLines = [];
+          while (currentBuffer.length > 0 && captionLines.length < 2) {
+            const lastLine = currentBuffer[currentBuffer.length - 1].trim();
+            if (!lastLine) {
+              currentBuffer.pop();
+              continue;
+            }
+            if (isShortCaptionLine(lastLine)) {
+              captionLines.unshift(currentBuffer.pop().trim().replace(/^[*_]+|[*_]+$/g, ''));
+            } else {
+              break;
+            }
+          }
+
+          if (currentBuffer.join('\n').trim().length >= 25) {
+            flushSection();
+          }
+          if (captionLines.length > 0) {
+            currentHeading = captionLines.join(' — ');
+          }
+          inTable = true;
+        } else if (inTable && !trimmed.startsWith('|') && trimmed.length > 0) {
+          inTable = false;
+        }
+
+        currentBuffer.push(rawLine);
+      }
+      flushSection();
+
+      return rawSections.map((sec, idx) => {
+        const title = `${pageTitle} — ${sec.heading}`;
+        const breadcrumbText = `[Source: ${pageTitle} | Section: ${sec.heading} | URL: ${sourceUrl}]\n${sec.body}`;
+        const yearMatch = sec.body.match(/\b(202[4-9])\b/);
+        return {
+          id: `web-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+          source_type: 'website',
+          title,
+          section_heading: sec.heading,
+          url: sourceUrl,
+          section_path: `${sourceUrl.replace(/^https?:\/\/(www\.)?/, '')} > ${sec.heading}`,
+          category: inferCategoryFromSection(sourceUrl, sec.heading, sec.body),
+          academic_year: yearMatch ? yearMatch[1] : '2026',
+          dates_mentioned: extractDatesFromText(sec.body),
+          content: sec.body,
+          embedding_input: breadcrumbText,
+          embedding: null
+        };
+      });
+    }
+
+    // ==================== 4. FAST GEMINI VECTOR EMBEDDING ENGINE (CACHES WORKING MODEL) ====================
+    async function generateBatchEmbeddings(texts, taskType = 'RETRIEVAL_DOCUMENT', timeoutMs = 4500) {
+      if (!geminiApiKey || geminiApiKey.trim().length < 10) {
+        return texts.map(() => null);
+      }
+      const key = geminiApiKey.trim();
+      const results = [];
+      const BATCH_SIZE = 25;
+      const modelsToTry = getEmbedModelsToTry();
+
+      for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+        const slice = texts.slice(i, i + BATCH_SIZE);
+        let batchSuccess = false;
+
+        for (const embModel of modelsToTry) {
+          const requests = slice.map(t => ({
+            model: `models/${embModel}`,
+            content: { parts: [{ text: String(t || '').slice(0, 2500) }] },
+            taskType,
+            output_dimensionality: 768
+          }));
+
+          try {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            const resp = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${embModel}:batchEmbedContents?key=${encodeURIComponent(key)}`,
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requests }),
+                signal: controller.signal
+              }
+            );
+            clearTimeout(timer);
+
+            if (resp.ok) {
+              const data = await resp.json();
+              const embeddings = data.embeddings || [];
+              for (let j = 0; j < slice.length; j++) {
+                results.push(embeddings[j]?.values || null);
+              }
+              if (workingEmbedModel !== embModel) {
+                workingEmbedModel = embModel;
+                try { localStorage.setItem(STORAGE_KEY_EMB_MODEL, embModel); } catch (e) {}
+              }
+              batchSuccess = true;
+              break;
+            }
+          } catch (err) {
+            console.warn(`Embedding attempt with ${embModel} skipped:`, err);
+          }
+        }
+
+        if (!batchSuccess) {
+          for (let j = 0; j < slice.length; j++) results.push(null);
+        }
+      }
+      return results;
+    }
+
+    function cosineSimilarity(vecA, vecB) {
+      if (!Array.isArray(vecA) || !Array.isArray(vecB) || vecA.length !== vecB.length || vecA.length === 0) {
+        return 0;
+      }
+      let dot = 0;
+      let normA = 0;
+      let normB = 0;
+      for (let i = 0; i < vecA.length; i++) {
+        dot += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+      }
+      if (normA === 0 || normB === 0) return 0;
+      return dot / (Math.sqrt(normA) * Math.sqrt(normB));
+    }
+
+    // ==================== 5. SUPABASE pgvector CLOUD SYNC ====================
+    async function syncChunksToSupabase(chunks, sourceUrlToReplace) {
+      if (!supabaseUrl || !supabaseKey || !chunks.length) return false;
+      const cleanHost = supabaseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      const headers = {
+        'apikey': supabaseKey.trim(),
+        'Authorization': `Bearer ${supabaseKey.trim()}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      };
+      try {
+        if (sourceUrlToReplace) {
+          await fetch(`https://${cleanHost}/rest/v1/knowledge_chunks?url=eq.${encodeURIComponent(sourceUrlToReplace)}`, {
+            method: 'DELETE',
+            headers
+          });
+        }
+        const payload = chunks.map(c => ({
+          id: c.id,
+          source_type: c.source_type,
+          title: c.title,
+          url: c.url,
+          category: c.category,
+          academic_year: c.academic_year,
+          content: c.content,
+          embedding: c.embedding
+        }));
+        const resp = await fetch(`https://${cleanHost}/rest/v1/knowledge_chunks`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+        return resp.ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function loadChunksFromSupabaseIfEmpty() {
+      if (knowledgeBase.length > 0 || !supabaseUrl || !supabaseKey) return;
+      const cleanHost = supabaseUrl.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+      try {
+        const resp = await fetch(`https://${cleanHost}/rest/v1/knowledge_chunks?select=*&limit=500`, {
+          headers: {
+            'apikey': supabaseKey.trim(),
+            'Authorization': `Bearer ${supabaseKey.trim()}`
+          }
+        });
+        if (resp.ok) {
+          const rows = await resp.json();
+          if (Array.isArray(rows) && rows.length > 0) {
+            knowledgeBase = rows;
+            persistKnowledgeBase();
+            updateAllViews();
+            showToast(`☁️ Loaded ${rows.length} vectorized chunks from Supabase!`);
+          }
+        }
+      } catch (e) {}
+    }
+
+    // ==================== 6. UNIVERSAL MULTI-HOP LINK-FOLLOWING + FUZZY + VECTOR RETRIEVAL ====================
+    const STOP_WORDS = new Set([
+      'a', 'an', 'the', 'and', 'or', 'but', 'if', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'from', 'about',
+      'is', 'are', 'was', 'were', 'be', 'been', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'can', 'could',
+      'i', 'me', 'my', 'we', 'you', 'your', 'what', 'whats', 'whts', 'which', 'who', 'where', 'when', 'why', 'how', 'tell', 'show',
+      'please', 'pls', 'srm', 'srmist', 'college', 'campus', 'university', 'student', 'students', 'there', 'much', 'many',
+      'complete', 'all', 'every', 'details', 'detail', 'information', 'give'
+    ]);
+
+    function extractTokens(text) {
+      return Array.from(new Set(
+        String(text || '')
+          .toLowerCase()
+          .replace(/[^\w\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length >= 2 && !STOP_WORDS.has(w))
+      ));
+    }
+
+    // Pure mathematical Levenshtein similarity between two words in [0, 1]
+    function wordEditSimilarity(a, b) {
+      if (a === b) return 1.0;
+      const lenA = a.length;
+      const lenB = b.length;
+      if (!lenA || !lenB) return 0;
+      if (Math.abs(lenA - lenB) > 2) return 0;
+      if (lenA >= 3 && lenB >= 3 && (a.startsWith(b) || b.startsWith(a))) {
+        return Math.min(lenA, lenB) / Math.max(lenA, lenB);
+      }
+      if (lenA < 4 || lenB < 4) return 0;
+
+      const dp = Array.from({ length: lenA + 1 }, (_, i) => i);
+      for (let j = 1; j <= lenB; j++) {
+        let prev = dp[0];
+        dp[0] = j;
+        for (let i = 1; i <= lenA; i++) {
+          const temp = dp[i];
+          const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+          dp[i] = Math.min(dp[i] + 1, dp[i - 1] + 1, prev + cost);
+          prev = temp;
+        }
+      }
+      const dist = dp[lenA];
+      const maxLen = Math.max(lenA, lenB);
+      const sim = 1 - (dist / maxLen);
+      return sim >= 0.72 ? sim : 0;
+    }
+
+    function bestTokenMatchScore(queryToken, docTokens) {
+      let best = 0;
+      for (let i = 0; i < docTokens.length; i++) {
+        const sim = wordEditSimilarity(queryToken, docTokens[i]);
+        if (sim > best) {
+          best = sim;
+          if (best === 1.0) break;
+        }
+      }
+      return best;
+    }
+
+    // Extracts any Markdown links `[Anchor](https://...)` embedded inside already-crawled chunks
+    function collectCandidateLinksFromKnowledgeBase() {
+      const linkMap = new Map();
+      for (const item of discoveredSiteLinks) {
+        if (item && item.url) {
+          linkMap.set(normalizeUrlKey(item.url), item);
+        }
+      }
+      const mdLinkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+      for (const chunk of knowledgeBase) {
+        let m;
+        const text = String(chunk.content || '');
+        while ((m = mdLinkRegex.exec(text)) !== null) {
+          const anchorText = m[1].trim();
+          const rawHref = m[2].split('#')[0].replace(/\/+$/, '');
+          if (/\.(jpg|jpeg|png|gif|svg|css|js|zip|mp4|pdf)$/i.test(rawHref)) continue;
+          const key = normalizeUrlKey(rawHref);
+          const existing = linkMap.get(key);
+          linkMap.set(key, {
+            url: rawHref,
+            anchorText: existing ? `${existing.anchorText} ${anchorText}` : anchorText
+          });
+        }
+      }
+      return Array.from(linkMap.values());
+    }
+
+    // Multi-Hop RAG Link Follower:
+    // If the Admin crawled a root page (e.g. `https://www.srmup.in/`), and that page contained a link `[Fee Structure](https://.../fee-structure)`
+    // whose anchor text or URL path matches the user's question, but that sub-page URL hasn't been crawled into `knowledgeBase` yet,
+    // follow that discovered link automatically so the user gets the actual sub-page tables instead of "Here is the link, go crawl it!"
+    const followedLinksSession = new Set();
+
+    async function followDiscoveredSubLinksIfNeeded(queryTokens) {
+      if (!queryTokens.length || knowledgeBase.length === 0) return;
+
+      const crawledUrlKeys = new Set(knowledgeBase.map(k => normalizeUrlKey(k.url)));
+      const candidates = collectCandidateLinksFromKnowledgeBase();
+
+      const scoredLinks = [];
+      for (const cand of candidates) {
+        const key = normalizeUrlKey(cand.url);
+        if (crawledUrlKeys.has(key) || followedLinksSession.has(key)) continue;
+
+        const slugText = cand.url.replace(/^https?:\/\/[^/]+/i, '').replace(/[/\-_]/g, ' ');
+        const linkTokens = extractTokens(`${cand.anchorText || ''} ${slugText}`);
+        if (!linkTokens.length) continue;
+
+        let matchSum = 0;
+        let strongHits = 0;
+        for (const qt of queryTokens) {
+          const s = bestTokenMatchScore(qt, linkTokens);
+          matchSum += s;
+          if (s >= 0.78) strongHits++;
+        }
+
+        const score = matchSum / queryTokens.length;
+        if (strongHits >= 1 && score >= 0.34) {
+          scoredLinks.push({ url: cand.url, key, score, strongHits });
+        }
+      }
+
+      if (!scoredLinks.length) return;
+      scoredLinks.sort((a, b) => (b.strongHits - a.strongHits) || (b.score - a.score));
+
+      // Follow the top 1-2 matching discovered sub-page links on the fly
+      const toFollow = scoredLinks.slice(0, 2);
+      await Promise.all(toFollow.map(async (item) => {
+        followedLinksSession.add(item.key);
+        try {
+          await crawlAndIndexSingleUrl(item.url, () => {}, true);
+        } catch (e) {
+          console.warn('Multi-hop link follow skipped:', item.url, e);
+        }
+      }));
+    }
+
+    async function retrievePinpointChunks(rawQuery, categoryFilter = 'ALL', topK = 6) {
+      const queryTokens = extractTokens(rawQuery);
+
+      // Step 1: Multi-Hop RAG — if an already-crawled page (like the homepage) links to an uncrawled sub-page
+      // whose anchor text/URL slug matches the user's question, follow and index that sub-page automatically!
+      await followDiscoveredSubLinksIfNeeded(queryTokens);
+
+      // Step 2: Purge any old pure-menu chunks or re-split any older multi-table chunks
+      let needsRepersist = false;
+      const upgradedKb = [];
+      for (const item of knowledgeBase) {
+        const pipeDelimiterMatches = (String(item.content || '').match(/^\|[\s:|-]+\|$/gm) || []).length;
+        if (pipeDelimiterMatches > 1 && String(item.content || '').length > 1650) {
+          const splitItems = chunkMarkdownBySections(item.content, item.url || 'https://www.srmup.in/', item.title.split(' — ')[0]);
+          if (splitItems.length > 1) {
+            upgradedKb.push(...splitItems);
+            needsRepersist = true;
+            continue;
+          }
+        }
+        upgradedKb.push(item);
+      }
+      if (needsRepersist) {
+        knowledgeBase = upgradedKb;
+        persistKnowledgeBase();
+        updateAllViews();
+      }
+
+      const pool = knowledgeBase.filter(item => categoryFilter === 'ALL' || item.category === categoryFilter);
+      if (!pool.length) return [];
+
+      // Step 3: Compute embeddings for any unembedded chunks if Gemini API key is present
+      if (geminiApiKey && geminiApiKey.trim().length > 10) {
+        const unembedded = pool.filter(c => !Array.isArray(c.embedding) || c.embedding.length === 0);
+        if (unembedded.length > 0 && unembedded.length <= 30) {
+          const inputs = unembedded.map(c => `[Source: ${c.title} | Category: ${c.category}]\n${c.content}`);
+          const newVecs = await generateBatchEmbeddings(inputs, 'RETRIEVAL_DOCUMENT', 3500);
+          unembedded.forEach((c, idx) => {
+            if (newVecs[idx]) c.embedding = newVecs[idx];
+          });
+          persistKnowledgeBase();
+          updateAllViews();
+        }
+      }
+
+      const hasAnyEmbeddedChunk = pool.some(c => Array.isArray(c.embedding) && c.embedding.length > 0);
+      let queryVec = null;
+      if (hasAnyEmbeddedChunk && geminiApiKey && geminiApiKey.trim().length > 10) {
+        const vecArr = await generateBatchEmbeddings([rawQuery], 'RETRIEVAL_QUERY', 2200);
+        queryVec = vecArr[0] || null;
+      }
+
+      const scored = pool.map(chunk => {
+        const headingTokens = extractTokens(`${chunk.title || ''} ${chunk.section_heading || ''}`);
+        const bodyTokens = extractTokens(chunk.content || '');
+        const allDocTokens = Array.from(new Set([...headingTokens, ...bodyTokens]));
+
+        // 1. Semantic Vector Score (Cosine Similarity)
+        let semanticScore = 0;
+        if (queryVec && Array.isArray(chunk.embedding) && chunk.embedding.length > 0) {
+          semanticScore = Math.max(0, cosineSimilarity(queryVec, chunk.embedding));
+        }
+
+        // 2. Universal Mathematical Edit-Distance Fuzzy Token Overlap
+        let headingMatchSum = 0;
+        let bodyMatchSum = 0;
+        for (const qt of queryTokens) {
+          headingMatchSum += bestTokenMatchScore(qt, headingTokens);
+          bodyMatchSum += bestTokenMatchScore(qt, allDocTokens);
+        }
+
+        const fuzzyCoverage = queryTokens.length > 0 ? (bodyMatchSum / queryTokens.length) : 0;
+        const fuzzyHeadingBonus = queryTokens.length > 0 ? (headingMatchSum / queryTokens.length) * 0.45 : 0;
+
+        // Slight structural bonus for chunks containing real data tables (`| --- |`) over link-heavy overview text
+        const hasDataTable = isTableDelimiterLine((String(chunk.content || '').split('\n').find(l => isTableDelimiterLine(l)) || ''));
+        const tableBonus = hasDataTable && fuzzyCoverage > 0.25 ? 0.12 : 0;
+
+        let finalScore = 0;
+        if (semanticScore > 0) {
+          finalScore = (semanticScore * 0.55) + (fuzzyCoverage * 0.30) + fuzzyHeadingBonus + tableBonus;
+        } else {
+          finalScore = (fuzzyCoverage * 0.65) + fuzzyHeadingBonus + tableBonus;
+        }
+
+        return {
+          ...chunk,
+          similarity: Number(Math.min(0.99, finalScore).toFixed(3)),
+          semanticScore: Number(semanticScore.toFixed(3))
+        };
+      });
+
+      scored.sort((a, b) => b.similarity - a.similarity);
+
+      const best = scored[0];
+      if (!best || best.similarity < 0.12) return [];
+
+      const threshold = Math.max(0.14, best.similarity * 0.42);
+      return scored
+        .filter(item => item.similarity >= threshold)
+        .slice(0, topK);
+    }
+
+    // ==================== 7. GEMINI CONVERSATIONAL + GROUNDED RAG BRAIN ====================
+    async function callGeminiGenerateWithFallback(apiKey, payloadObj) {
+      const modelsToTry = getChatModelsToTry();
+      let lastErrorMsg = 'Unknown API error';
+
+      for (let i = 0; i < modelsToTry.length; i++) {
+        const modelName = modelsToTry[i].replace(/^models\//, '');
+        try {
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payloadObj)
+            }
+          );
+
+          if (resp.ok) {
+            if (workingChatModel !== modelName) {
+              workingChatModel = modelName;
+              try { localStorage.setItem(STORAGE_KEY_CHAT_MODEL, modelName); } catch (e) {}
+            }
+            return await resp.json();
+          }
+
+          const errJson = await resp.json().catch(() => ({}));
+          const msg = errJson?.error?.message || `HTTP ${resp.status}`;
+          lastErrorMsg = msg;
+
+          const suggestedMatch = msg.match(/models\/([a-zA-Z0-9.\-_]+)/);
+          if (suggestedMatch && suggestedMatch[1] && !modelsToTry.includes(suggestedMatch[1])) {
+            modelsToTry.splice(i + 1, 0, suggestedMatch[1]);
+          }
+        } catch (netErr) {
+          lastErrorMsg = netErr.message;
+        }
+      }
+
+      throw new Error(lastErrorMsg);
+    }
+
+    async function generateGeminiRagResponse(userQuery, retrievedChunks) {
+      if (!geminiApiKey || geminiApiKey.trim().length < 10) {
+        if (retrievedChunks.length > 0) {
+          const previewHtml = retrievedChunks.map(c =>
+            `<div class="p-3 rounded-xl bg-slate-900 border border-slate-800 mb-2">
+              <div class="font-semibold text-indigo-300 text-xs mb-1">${escapeHtml(c.title)}</div>
+              <div class="text-xs text-slate-200 whitespace-pre-line">${escapeHtml(c.content)}</div>
+            </div>`
+          ).join('');
+          return {
+            html: `<div class="space-y-2 text-xs sm:text-sm text-slate-200">
+              <div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs">
+                ⚡ <strong>Admin Setup Note:</strong> Unlock the <strong>🔒 Admin Portal</strong> to connect your Gemini API Key for full AI synthesis. Here are the matching chunks retrieved from your database:
+              </div>
+              ${previewHtml}
+            </div>`,
+            sources: retrievedChunks
+          };
+        }
+        return {
+          html: `<div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs sm:text-sm space-y-2">
+            <p><strong>🔒 Admin Setup Required:</strong> Please click <strong>"🔒 Admin"</strong> in the top-right header (password: <code>pk1607</code>) to connect your Google Gemini API key and crawl your college pages.</p>
+          </div>`,
+          sources: []
+        };
+      }
+
+      const contextBlock = retrievedChunks.length > 0
+        ? retrievedChunks.map((c, idx) =>
+            `[Chunk ${idx + 1}] Title: ${c.title}\nSource URL: ${c.url}\nCategory: ${c.category} | Year: ${c.academic_year} | Match Score: ${c.similarity}\nContent:\n${c.content}`
+          ).join('\n\n---\n\n')
+        : `NO_MATCHING_CHUNKS_IN_DB (Current total chunks in database: ${knowledgeBase.length})`;
+
+      const systemInstruction = `You are the "SRM College Query Assistant", an intelligent, warm, and witty AI assistant for SRM Institute of Science and Technology (SRMIST), Delhi-NCR Campus.
+
+FOLLOW THESE STRICT RULES:
+1. CASUAL CHAT, GREETINGS & STUDENT HUMOR:
+   - If the user says hi/hello, asks "who are you" / "what can you do", cracks a joke, or asks a lighthearted student life question, respond warmly, naturally, and with witty college humor! Do NOT cite sources for casual banter.
+2. COLLEGE FACTUAL QUERIES:
+   - Answer STRICTLY using the RETRIEVED KNOWLEDGE BASE CHUNKS provided below.
+   - Naturally interpret any spelling mistakes in the user's message against the retrieved chunks.
+   - Format any fee structures, charges, or multi-column comparisons as clean Markdown tables (| Column | Column |).
+   - If RETRIEVED KNOWLEDGE BASE CHUNKS says NO_MATCHING_CHUNKS_IN_DB, politely inform the user that this page hasn't been crawled into the vector database yet and an Admin can crawl the relevant URL or upload a PDF in the Admin Portal. Never invent figures or facts.`;
+
+      const recentTurns = chatHistory.slice(-6).map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.rawText || m.text || '' }]
+      })).filter(m => m.parts[0].text.trim().length > 0);
+
+      recentTurns.push({
+        role: 'user',
+        parts: [{
+          text: `RETRIEVED KNOWLEDGE BASE CHUNKS:\n${contextBlock}\n\n---\nSTUDENT MESSAGE: ${userQuery}`
+        }]
+      });
+
+      try {
+        const data = await callGeminiGenerateWithFallback(geminiApiKey.trim(), {
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents: recentTurns,
+          generationConfig: {
+            temperature: 0.3,
+            maxOutputTokens: 1400
+          }
+        });
+
+        const markdownReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No response generated.';
+        return {
+          html: renderMarkdownToHtml(markdownReply),
+          rawMarkdown: markdownReply,
+          sources: retrievedChunks
+        };
+      } catch (err) {
+        return {
+          html: `<div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs sm:text-sm">
+            ⚠️ <strong>Gemini API Error:</strong> ${escapeHtml(err.message)}. Please verify your API key in the Admin Portal.
+          </div>`,
+          sources: retrievedChunks
+        };
+      }
+    }
+
+    // ==================== 8. RICH MARKDOWN & PIPE-TABLE RENDERER ====================
+    function renderInlineMarkdown(text) {
+      let s = escapeHtml(text);
+      s = s.replace(/\*\*([^*]+)\*\*/g, '<strong class="text-white font-semibold">$1</strong>');
+      s = s.replace(/\*([^*]+)\*/g, '<em class="text-slate-200">$1</em>');
+      s = s.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-slate-900 text-indigo-300 font-mono text-[11px]">$1</code>');
+      s = s.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-400 hover:text-indigo-300 underline">$1 ↗</a>');
+      return s;
+    }
+
+    function renderMarkdownToHtml(md) {
+      const lines = String(md || '').split('\n');
+      const out = [];
+      let i = 0;
+
+      while (i < lines.length) {
+        const line = lines[i].trim();
+
+        if (line.startsWith('|') && line.endsWith('|') && i + 1 < lines.length && /^\|\s*[:\-]+/.test(lines[i + 1].trim())) {
+          const headerCells = line.slice(1, -1).split('|').map(c => renderInlineMarkdown(c.trim()));
+          i += 2;
+          const bodyRows = [];
+          while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
+            const cells = lines[i].trim().slice(1, -1).split('|').map(c => renderInlineMarkdown(c.trim()));
+            bodyRows.push(cells);
+            i++;
+          }
+          const tableHtml = `<div class="overflow-x-auto my-2"><table class="rag-table">
+            <thead><tr>${headerCells.map(h => `<th>${h}</th>`).join('')}</tr></thead>
+            <tbody>${bodyRows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody>
+          </table></div>`;
+          out.push(tableHtml);
+          continue;
+        }
+
+        const hMatch = line.match(/^(#{1,3})\s+(.+)$/);
+        if (hMatch) {
+          out.push(`<div class="font-bold text-white text-sm mt-2 mb-1">${renderInlineMarkdown(hMatch[2])}</div>`);
+          i++;
+          continue;
+        }
+
+        if (/^([•\-*]|\d+\.)\s+/.test(line)) {
+          const items = [];
+          while (i < lines.length && /^([•\-*]|\d+\.)\s+/.test(lines[i].trim())) {
+            const cleanedItem = lines[i].trim().replace(/^([•\-*]|\d+\.)\s+/, '');
+            items.push(`<li>${renderInlineMarkdown(cleanedItem)}</li>`);
+            i++;
+          }
+          out.push(`<ul class="list-disc pl-5 space-y-1 my-1.5 text-slate-200">${items.join('')}</ul>`);
+          continue;
+        }
+
+        if (line.length === 0) {
+          i++;
+          continue;
+        }
+
+        out.push(`<p class="my-1.5 leading-relaxed text-slate-200">${renderInlineMarkdown(line)}</p>`);
+        i++;
+      }
+
+      return `<div class="text-xs sm:text-sm space-y-1">${out.join('\n')}</div>`;
+    }
+
+    // ==================== 9. WEB CRAWLER ENGINE (SUB-LINK DISCOVERY + MULTI-HOP LINK GRAPH) ====================
+    function discoverSameDomainLinks(markdownText, baseUrl) {
+      const linkMap = new Map();
+      let baseHost = 'srmup.in';
+      try {
+        baseHost = new URL(baseUrl).hostname.replace(/^www\./i, '').toLowerCase();
+      } catch (e) {}
+
+      const linkRegex = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g;
+      let m;
+      while ((m = linkRegex.exec(markdownText)) !== null) {
+        const anchorText = m[1].replace(/[#*`]/g, '').trim();
+        const rawHref = m[2].split('#')[0].replace(/\/+$/, '');
+        if (/\.(jpg|jpeg|png|gif|svg|css|js|zip|mp4|pdf|webp|ico)$/i.test(rawHref)) continue;
+
+        try {
+          const parsed = new URL(rawHref);
+          const linkHost = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+          if (linkHost === baseHost && parsed.pathname && parsed.pathname !== '/') {
+            const normKey = normalizeUrlKey(rawHref);
+            if (!linkMap.has(normKey)) {
+              linkMap.set(normKey, { url: rawHref, anchorText });
+            }
+          }
+        } catch (e) {}
+      }
+
+      const discovered = Array.from(linkMap.values());
+      // Save into the persistent dynamic link graph so Multi-Hop RAG can follow any uncrawled sub-page link on demand!
+      const existingKeys = new Set(discoveredSiteLinks.map(d => normalizeUrlKey(d.url)));
+      for (const item of discovered) {
+        const k = normalizeUrlKey(item.url);
+        if (!existingKeys.has(k)) {
+          discoveredSiteLinks.push(item);
+          existingKeys.add(k);
+        }
+      }
+      persistDiscoveredLinks();
+
+      // Prioritize deep content sub-paths (urls with 2+ path segments or descriptive anchor text) over generic top-level links
+      discovered.sort((a, b) => {
+        const depthA = (new URL(a.url).pathname.split('/').filter(Boolean).length >= 2) ? 1 : 0;
+        const depthB = (new URL(b.url).pathname.split('/').filter(Boolean).length >= 2) ? 1 : 0;
+        return depthB - depthA;
+      });
+
+      return discovered.map(d => d.url);
+    }
+
+    async function crawlAndIndexSingleUrl(targetUrl, logCallback, fastBackgroundEmbedding = false) {
+      const cleanUrl = targetUrl.trim().replace(/\/+$/, '');
+      logCallback(`🌐 Fetching live Markdown & tables from ${cleanUrl}...`, 'text-indigo-300');
+
+      const resp = await fetch(`https://r.jina.ai/${cleanUrl}`, {
+        headers: { 'Accept': 'text/plain' }
+      });
+      if (!resp.ok) {
+        throw new Error(`Extractor returned HTTP ${resp.status} for ${cleanUrl}`);
+      }
+
+      const rawMarkdown = await resp.text();
+      const subLinks = discoverSameDomainLinks(rawMarkdown, cleanUrl);
+
+      const cleanedMd = rawMarkdown
+        .replace(/!\[.*?\]\(.*?\)/g, '')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      const chunks = chunkMarkdownBySections(cleanedMd, cleanUrl, '');
+      if (!chunks.length) {
+        logCallback(`⚠️ No substantial text sections found on ${cleanUrl}.`, 'text-amber-300');
+        return { chunksAdded: 0, subLinks };
+      }
+
+      const embeddingInputs = chunks.map(c => c.embedding_input);
+      chunks.forEach(c => delete c.embedding_input);
+
+      const normTarget = normalizeUrlKey(cleanUrl);
+      knowledgeBase = knowledgeBase.filter(k => normalizeUrlKey(k.url) !== normTarget);
+      knowledgeBase.unshift(...chunks);
+      persistKnowledgeBase();
+      updateAllViews();
+
+      if (geminiApiKey && geminiApiKey.trim().length > 10) {
+        if (fastBackgroundEmbedding) {
+          generateBatchEmbeddings(embeddingInputs, 'RETRIEVAL_DOCUMENT').then(vectors => {
+            chunks.forEach((c, idx) => { c.embedding = vectors[idx]; });
+            persistKnowledgeBase();
+            syncChunksToSupabase(chunks, cleanUrl);
+            updateAllViews();
+          });
+        } else {
+          logCallback(`🧠 Generating Gemini semantic vectors for ${chunks.length} section(s)...`, 'text-cyan-300');
+          const vectors = await generateBatchEmbeddings(embeddingInputs, 'RETRIEVAL_DOCUMENT');
+          chunks.forEach((c, idx) => { c.embedding = vectors[idx]; });
+          persistKnowledgeBase();
+          const synced = await syncChunksToSupabase(chunks, cleanUrl);
+          if (synced) {
+            logCallback(`☁️ Synced ${chunks.length} vectorized chunks to Supabase pgvector!`, 'text-emerald-300');
+          }
+          updateAllViews();
+        }
+      } else {
+        logCallback(`ℹ️ Extracted ${chunks.length} section(s) (Connect Gemini API Key in Admin Portal to compute vectors).`, 'text-amber-300');
+      }
+
+      logCallback(`✅ Indexed ${chunks.length} section/table chunks from ${cleanUrl}!`, 'text-emerald-400 font-semibold');
+      return { chunksAdded: chunks.length, subLinks };
+    }
+
+    // ==================== 10. UI VIEWS & CHAT STREAM MANAGEMENT ====================
+    const messageSourcesRegistry = {};
+
+    function openCitationDrawer(sourceObj) {
+      if (!sourceObj) return;
+      const drawer = document.getElementById('chatCitationDrawer');
+      document.getElementById('drawerSourceBadge').textContent = `${(sourceObj.source_type || 'SOURCE').toUpperCase()} (${sourceObj.academic_year || '2026'})`;
+      document.getElementById('drawerSourceTitle').textContent = sourceObj.title;
+      document.getElementById('drawerSourceBody').textContent = sourceObj.content;
+
+      const linkBtn = document.getElementById('drawerSourceLinkBtn');
+      const validUrl = sourceObj.url && sourceObj.url.startsWith('http') ? sourceObj.url : 'https://www.srmup.in/';
+      linkBtn.href = validUrl;
+      drawer.classList.remove('hidden');
+    }
+
+    function appendChatMessage(role, htmlContent, sources = [], saveToStorage = true, rawText = '') {
+      const container = document.getElementById('chatMessagesContainer');
+      const wrapper = document.createElement('div');
+
+      if (role === 'user') {
+        wrapper.className = 'flex justify-end';
+        wrapper.innerHTML = `
+          <div class="max-w-xl bg-indigo-600 text-white px-4 py-3 rounded-2xl rounded-br-sm shadow-md text-xs sm:text-sm">
+            ${escapeHtml(htmlContent)}
+          </div>
+        `;
+      } else {
+        const msgId = 'msg-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        messageSourcesRegistry[msgId] = sources;
+
+        const collapsibleSourcesHtml = sources && sources.length ? `
+          <div class="mt-3 pt-2.5 border-t border-slate-800/80">
+            <button type="button" class="toggle-sources-btn inline-flex items-center gap-1.5 text-xs font-medium text-indigo-400 hover:text-indigo-300 transition" data-msg-id="${msgId}">
+              <span>🔗 View Retrieved Sources (${sources.length})</span>
+              <span class="toggle-arrow text-[10px]">▼</span>
+            </button>
+            <div id="sources-panel-${msgId}" class="hidden mt-2.5 space-y-2">
+              ${sources.map((src, idx) => {
+                const hrefUrl = src.url && src.url.startsWith('http') ? src.url : 'https://www.srmup.in/';
+                const simLabel = typeof src.similarity === 'number' ? ` • Match: ${Math.round(src.similarity * 100)}%` : '';
+                return `
+                  <div class="p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 flex flex-wrap items-center justify-between gap-2">
+                    <button type="button" class="inspect-source-item text-left min-w-0 flex-1 hover:text-indigo-300 transition" data-msg-id="${msgId}" data-cite-idx="${idx}">
+                      <div class="text-xs font-semibold text-white truncate">${escapeHtml(src.title)}</div>
+                      <div class="text-[11px] text-slate-400 truncate">Click to inspect chunk • ${escapeHtml(src.category)}${simLabel}</div>
+                    </button>
+                    <a href="${escapeHtml(hrefUrl)}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white text-[11px] font-semibold border border-indigo-500/30 transition shrink-0 flex items-center gap-1">
+                      <span>Go to Source</span>
+                      <span>↗</span>
+                    </a>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+          </div>
+        ` : '';
+
+        wrapper.className = 'flex justify-start';
+        wrapper.innerHTML = `
+          <div class="max-w-3xl w-full bg-slate-950/90 border border-slate-800/90 p-4 rounded-2xl rounded-tl-sm shadow-lg">
+            ${htmlContent}
+            ${collapsibleSourcesHtml}
+          </div>
+        `;
+      }
+
+      container.appendChild(wrapper);
+      container.scrollTop = container.scrollHeight;
+
+      if (saveToStorage) {
+        chatHistory.push({
+          role,
+          html: htmlContent,
+          rawText: rawText || (role === 'user' ? htmlContent : ''),
+          sources: (sources || []).map(s => ({
+            title: s.title,
+            url: s.url,
+            category: s.category,
+            academic_year: s.academic_year,
+            source_type: s.source_type,
+            similarity: s.similarity,
+            content: s.content
+          }))
+        });
+        persistChatHistory();
+      }
+    }
+
+    async function handleUserQuery(queryText) {
+      if (!queryText.trim()) return;
+      const categoryFilter = document.getElementById('categoryFilterSelect').value;
+
+      appendChatMessage('user', queryText, [], true, queryText);
+
+      const container = document.getElementById('chatMessagesContainer');
+      const loadingEl = document.createElement('div');
+      loadingEl.className = 'flex justify-start';
+      loadingEl.innerHTML = `
+        <div class="bg-slate-950/90 border border-slate-800 px-4 py-3 rounded-2xl text-xs text-slate-400 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-indigo-400 animate-ping"></span>
+          <span>Searching vector store & generating verified response...</span>
+        </div>
+      `;
+      container.appendChild(loadingEl);
+      container.scrollTop = container.scrollHeight;
+
+      // 1. Prioritize Serverless Backend (/api/chat) for secure, zero-key student experience
+      try {
+        const apiResp = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query: queryText,
+            history: chatHistory.slice(-6).map(m => ({
+              role: m.role,
+              text: m.rawText || m.text || ''
+            })),
+            category: categoryFilter
+          })
+        });
+
+        if (apiResp.ok) {
+          const apiData = await apiResp.json();
+          if (apiData && apiData.answer) {
+            loadingEl.remove();
+            const renderedHtml = renderMarkdownToHtml(apiData.answer);
+            appendChatMessage('assistant', renderedHtml, apiData.sources || [], true, apiData.answer);
+            return;
+          }
+        }
+      } catch (backendErr) {
+        console.info('Backend /api/chat unavailable, falling back to client RAG engine:', backendErr);
+      }
+
+      // 2. Client-side fallback (if running offline / file:// standalone)
+      try {
+        const isCasualGreeting = /^(hi+|hello+|hey+|hlo+|thanks|thank you|bye|good morning|good evening)$/i.test(queryText.trim());
+        const topChunks = isCasualGreeting ? [] : await retrievePinpointChunks(queryText, categoryFilter, 6);
+        const response = await generateGeminiRagResponse(queryText, topChunks);
+        loadingEl.remove();
+
+        const finalSources = isCasualGreeting ? [] : response.sources;
+        appendChatMessage('assistant', response.html, finalSources, true, response.rawMarkdown || '');
+      } catch (err) {
+        loadingEl.remove();
+        appendChatMessage('assistant', `<p class="text-rose-300 text-xs">Error processing request: ${escapeHtml(err.message)}</p>`, [], true);
+      }
+    }
+
+    function initWelcomeOrRestoreChat(forceClear = false) {
+      const container = document.getElementById('chatMessagesContainer');
+      container.innerHTML = '';
+
+      if (forceClear) {
+        chatHistory = [];
+        try { localStorage.removeItem(STORAGE_KEY_CHAT); } catch (e) {}
+      }
+
+      if (chatHistory.length > 0 && !forceClear) {
+        chatHistory.forEach(item => {
+          appendChatMessage(item.role, item.html, item.sources || [], false, item.rawText || '');
+        });
+        return;
+      }
+
+      const welcomeHtml = `
+        <div class="space-y-1.5 text-xs sm:text-sm text-slate-200 leading-relaxed">
+          <p class="font-semibold text-white text-sm">👋 Welcome to SRM College Query!</p>
+          <p class="text-slate-300">
+            I'm your AI campus assistant. Ask me anything about courses, fee structures, hostels, placements, library rules, or college life—how can I help you today?
+          </p>
+        </div>
+      `;
+      appendChatMessage('assistant', welcomeHtml, [], true, 'Welcome to SRM College Query! How can I help you today?');
+    }
+
+    function updateAllViews() {
+      const webDocs = knowledgeBase.filter(k => k.source_type === 'website');
+      const pdfDocs = knowledgeBase.filter(k => k.source_type === 'pdf');
+      const noteDocs = knowledgeBase.filter(k => k.source_type === 'note');
+
+      document.getElementById('badgeWebCount').textContent = String(webDocs.length);
+      document.getElementById('badgePdfCount').textContent = String(pdfDocs.length);
+      document.getElementById('badgeNotesCount').textContent = String(noteDocs.length);
+      document.getElementById('statTotalChunks').textContent = String(knowledgeBase.length);
+
+      updateApiStatusBadge();
+
+      const notesBox = document.getElementById('customNotesListContainer');
+      if (notesBox) {
+        notesBox.innerHTML = noteDocs.length ? noteDocs.map(doc => {
+          const hasVec = Array.isArray(doc.embedding) && doc.embedding.length > 0;
+          return `
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-emerald-500/40 transition">
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-bold text-white">✍️ ${escapeHtml(doc.title)}</span>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] px-2 py-0.5 rounded bg-slate-900 ${hasVec ? 'text-emerald-400' : 'text-amber-400'}">${hasVec ? '✓ Vectorized' : 'Indexed'}</span>
+                  <button type="button" class="delete-kb-btn text-xs text-rose-400 hover:text-rose-300 px-1.5" data-id="${doc.id}">Delete</button>
+                </div>
+              </div>
+              <p class="text-xs text-slate-300 mt-2 whitespace-pre-line">${escapeHtml(doc.content)}</p>
+            </div>
+          `;
+        }).join('') : `<p class="text-xs text-slate-400">No custom notes added yet.</p>`;
+      }
+
+      const webBox = document.getElementById('webSourcesListContainer');
+      if (webBox) {
+        webBox.innerHTML = webDocs.length ? webDocs.map(doc => {
+          const hasVec = Array.isArray(doc.embedding) && doc.embedding.length > 0;
+          return `
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-indigo-500/40 transition flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between gap-2">
+                  <span class="text-xs font-bold text-white truncate">${escapeHtml(doc.title)}</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded-full ${hasVec ? 'bg-emerald-500/15 text-emerald-300' : 'bg-indigo-500/15 text-indigo-300'} shrink-0">${hasVec ? '✓ Vectorized' : '✓ Indexed'}</span>
+                </div>
+                <div class="text-[11px] text-indigo-400 font-mono mt-1 truncate">🔗 ${escapeHtml(doc.url)}</div>
+                <p class="text-xs text-slate-400 mt-2 line-clamp-3 whitespace-pre-line">${escapeHtml(doc.content)}</p>
+              </div>
+            </div>
+          `;
+        }).join('') : `<p class="text-xs text-slate-400 col-span-2">No web pages crawled yet. Enter any college URL above and click <strong>Extract & Embed URL</strong>.</p>`;
+      }
+
+      const pdfBox = document.getElementById('pdfSourcesListContainer');
+      if (pdfBox) {
+        pdfBox.innerHTML = pdfDocs.length ? pdfDocs.map(doc => {
+          const hasVec = Array.isArray(doc.embedding) && doc.embedding.length > 0;
+          return `
+            <div class="p-3.5 rounded-xl bg-slate-950 border border-slate-800 hover:border-cyan-500/40 transition">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-xs font-bold text-white">📄 ${escapeHtml(doc.title)}</span>
+                <span class="text-[10px] px-2 py-0.5 rounded-full ${hasVec ? 'bg-emerald-500/15 text-emerald-300' : 'bg-cyan-500/15 text-cyan-300'}">${hasVec ? '✓ Vectorized' : '✓ Indexed'} (${escapeHtml(doc.academic_year)})</span>
+              </div>
+              <p class="text-xs text-slate-300 mt-2 whitespace-pre-line line-clamp-3">${escapeHtml(doc.content)}</p>
+            </div>
+          `;
+        }).join('') : `<p class="text-xs text-slate-400">No PDF files uploaded yet. Select a PDF file on the left to extract and vectorize it!</p>`;
+      }
+
+      const allBox = document.getElementById('allKnowledgeTableContainer');
+      if (allBox) {
+        allBox.innerHTML = knowledgeBase.length ? knowledgeBase.map(doc => {
+          const hasVec = Array.isArray(doc.embedding) && doc.embedding.length > 0;
+          return `
+            <div class="p-3 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-3">
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300">${escapeHtml(doc.source_type)}</span>
+                  <span class="text-xs font-semibold text-white truncate">${escapeHtml(doc.title)}</span>
+                  <span class="text-[10px] px-2 py-0.5 rounded ${hasVec ? 'bg-emerald-500/15 text-emerald-300' : 'bg-indigo-500/15 text-indigo-300'}">${hasVec ? '✓ Vectorized' : '✓ Indexed'}</span>
+                </div>
+                <div class="text-[11px] text-slate-400 truncate mt-0.5">${escapeHtml(doc.url)} • ${escapeHtml(doc.category)}</div>
+              </div>
+              <button type="button" class="delete-kb-btn text-xs px-2.5 py-1 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/30 shrink-0" data-id="${doc.id}">
+                Remove
+              </button>
+            </div>
+          `;
+        }).join('') : `<p class="text-xs text-slate-400">Vector store is currently empty. Use the <strong>Web URL Crawler</strong> or <strong>PDF Extractor</strong> to index college documents.</p>`;
+      }
+    }
+
+    // ==================== ADMIN MODE TOGGLE ====================
+    const sections = ['viewChat', 'viewNotes', 'viewCrawler', 'viewPdf', 'viewArch'];
+
+    function switchTab(targetId) {
+      sections.forEach(secId => {
+        const el = document.getElementById(secId);
+        if (el) el.classList.toggle('hidden', secId !== targetId);
+      });
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        const active = btn.getAttribute('data-target') === targetId;
+        btn.className = active
+          ? 'nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-indigo-600 text-white shadow-sm whitespace-nowrap flex items-center gap-1.5'
+          : 'nav-tab-btn px-3 py-1.5 rounded-lg text-xs font-medium transition-all text-slate-300 hover:text-white whitespace-nowrap flex items-center gap-1.5';
+      });
+    }
+
+    // ==================== EVENT LISTENERS ====================
+    document.addEventListener('DOMContentLoaded', () => {
+      initWelcomeOrRestoreChat(false);
+
+      document.getElementById('chatInputForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('chatQueryInput');
+        const q = input.value.trim();
+        if (!q) return;
+        input.value = '';
+        handleUserQuery(q);
+      });
+
+      document.querySelectorAll('.sample-query-chip').forEach(chip => {
+        chip.addEventListener('click', () => {
+          handleUserQuery(chip.getAttribute('data-query'));
+        });
+      });
+
+      document.getElementById('btnClearChat').addEventListener('click', () => {
+        initWelcomeOrRestoreChat(true);
+        document.getElementById('chatCitationDrawer').classList.add('hidden');
+        showToast('Cleared chat history and started fresh.');
+      });
+
+      document.getElementById('btnCloseCitationDrawer').addEventListener('click', () => {
+        document.getElementById('chatCitationDrawer').classList.add('hidden');
+      });
+
+      document.getElementById('chatMessagesContainer').addEventListener('click', (e) => {
+        const toggleBtn = e.target.closest('.toggle-sources-btn');
+        if (toggleBtn) {
+          const msgId = toggleBtn.getAttribute('data-msg-id');
+          const panel = document.getElementById(`sources-panel-${msgId}`);
+          const arrow = toggleBtn.querySelector('.toggle-arrow');
+          if (panel) {
+            const isHidden = panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !isHidden);
+            if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+          }
+          return;
+        }
+
+        const inspectBtn = e.target.closest('.inspect-source-item');
+        if (inspectBtn) {
+          const msgId = inspectBtn.getAttribute('data-msg-id');
+          const idx = parseInt(inspectBtn.getAttribute('data-cite-idx'), 10);
+          const list = messageSourcesRegistry[msgId] || [];
+          if (list[idx]) openCitationDrawer(list[idx]);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

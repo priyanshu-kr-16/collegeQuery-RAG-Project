@@ -1,0 +1,12 @@
+{
+  "name": "srm-college-rag-assistant",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Full-Stack Pure RAG College Query Assistant (Node.js + Supabase pgvector + Gemini 3.8 Flash)",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "deploy": "vercel --prod"
+  }
+}
